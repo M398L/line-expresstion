@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>生物擬人表情動作 LINE 貼圖提示詞產生器（4x4 無文字版）</title>
+<style>
+:root{--bg:#eef6f3;--card:#fff;--ink:#1f3a33;--sub:#5f7a72;--line:#d3e3dd;--accent:#1f9d7a;--accent-2:#6c4ff0;--warn:#e5484d;--soft:#e2f3ee;--radius:16px}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.6}
+.wrap{max-width:1040px;margin:0 auto;padding:28px 16px 80px}
+header h1{font-size:clamp(22px,4vw,32px);margin:0 0 6px}
+header p{margin:0 0 22px;color:var(--sub)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:18px}
+.card h2{font-size:18px;margin:0 0 14px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.rowN{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:18px;margin-top:18px}
+@media(max-width:720px){.row{grid-template-columns:1fr}}
+label.t{display:block;font-weight:600;font-size:14px;margin-bottom:6px}
+select,input[type=text],textarea{width:100%;font:inherit;color:inherit;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;outline:none;transition:border-color .15s}
+select:focus,input:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px #1f9d7a22}
+.hint{font-size:13px;color:var(--sub);margin:8px 0 0;background:var(--soft);border-radius:10px;padding:8px 11px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:5px 13px;font:inherit;font-size:13px;cursor:pointer;color:var(--ink)}
+.chip:hover{border-color:var(--accent)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn{font:inherit;font-weight:600;border:0;border-radius:10px;padding:10px 18px;cursor:pointer;background:var(--accent);color:#fff}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:var(--soft);color:var(--accent)}
+.btn.alt{background:var(--accent-2)}
+.btn.sm{padding:5px 11px;font-size:13px}
+.bar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:720px){.grid{grid-template-columns:repeat(2,1fr)}}
+.slot{position:relative}
+.slot>span{position:absolute;left:9px;top:6px;font-size:11px;color:var(--sub);pointer-events:none}
+.slot textarea{resize:none;overflow:hidden;min-height:76px;padding-top:22px;text-align:center;font-size:clamp(14px,2.2vw,16px);word-break:break-word;transition:background .4s,border-color .15s}
+.slot.flash textarea{background:#e2f3ee}
+.slot.empty textarea{border-color:var(--warn);background:#fff5f5}
+.warn{color:var(--warn);font-size:13px;margin:6px 0 0;min-height:20px}
+.ref{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ref img{width:56px;height:56px;object-fit:cover;border-radius:10px;border:1.5px solid var(--line);display:none}
+.gen{display:flex;justify-content:center;margin:6px 0 20px}
+.gen .btn{font-size:17px;padding:13px 34px}
+pre{white-space:pre-wrap;word-break:break-word;background:#142b25;color:#e3f4ee;border-radius:12px;padding:16px;font:13px/1.65 ui-monospace,Menlo,Consolas,"Noto Sans TC",monospace;margin:0 0 12px}
+details{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:#fff}
+summary{cursor:pointer;padding:9px 13px;font-weight:600;font-size:14px;display:flex;justify-content:space-between;gap:10px}
+summary em{font-style:normal;color:var(--sub);font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+details .in{padding:0 13px 13px}
+details pre{font-size:12.5px;margin-bottom:8px}
+details h4{margin:8px 0 6px;font-size:13px;color:var(--sub)}
+.note{font-size:13px;border-radius:10px;padding:9px 12px;margin-bottom:10px;background:#fff6e0;color:#6b4a00}
+.note.g{background:#e6f7f1;color:#176b52;margin:0}
+#out{display:none}
+#toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:10px 20px;border-radius:999px;opacity:0;pointer-events:none;transition:.25s;z-index:9}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>生物擬人表情動作 LINE 貼圖提示詞產生器</h1>
+  <p>4x4 16 宮格・無文字版：每格填一個表情或動作，產出整張貼圖表與單張提示詞（中文或英文）。</p>
+</header>
+
+<section class="card">
+  <h2>全域參數</h2>
+  <div class="row">
+    <div>
+      <label class="t" for="lang">提示詞語言</label>
+      <select id="lang"><option value="zh">中文</option><option value="en">English</option></select>
+      <label class="t" for="style" style="margin-top:14px">風格選擇</label>
+      <select id="style"></select>
+      <div class="hint" id="styleDesc"></div>
+    </div>
+    <div>
+      <label class="t" for="art">畫風與模型偏好</label>
+      <select id="art"><option>3D Pixar Render</option><option>2D Flat Vector Sticker</option><option>Soft Watercolor</option><option>Cute Chibi Clay</option></select>
+      <label class="t" for="bg" style="margin-top:14px">背景設定</label>
+      <select id="bg">
+        <option value="white">白底（Pure white background）</option>
+        <option value="transparent">透明背景（Transparent PNG）</option>
+        <option value="key">純色去背底（純綠色，後製去背最乾淨）</option>
+      </select>
+      <div class="hint" id="bgDesc"></div>
+    </div>
+  </div>
+  <label class="t" style="margin-top:18px">主要色系</label>
+  <div class="chips" id="chips"></div>
+  <input type="text" id="colorCustom" placeholder="自訂顏色關鍵字，中英文皆可，例如：薄荷綠、奶油黃、peach pink">
+</section>
+
+<section class="card">
+  <h2>角色設定</h2>
+  <div class="row">
+    <div>
+      <label class="t">角色參考圖（選填）</label>
+      <div class="ref">
+        <input type="file" id="refFile" accept="image/*" style="max-width:220px;font-size:12px">
+        <img id="refImg" alt="參考圖預覽">
+        <button class="btn sm ghost" id="refClear" style="display:none">移除</button>
+      </div>
+      <label class="t" for="charDesc" style="margin-top:14px">角色描述（選填）</label>
+      <input type="text" id="charDesc" placeholder="沒有參考圖時用一兩句話定義主角，例如：圓滾滾的麻糬貓；留空則依風格自創">
+    </div>
+    <div>
+      <label class="t" for="consist">角色一致性</label>
+      <select id="consist"><option value="same">16 張同一角色（只換表情動作）</option><option value="indep">16 張各自創作</option></select>
+      <div class="hint">有參考圖時一律以參考圖為準；同一角色可讓整套貼圖更像一個系列。</div>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>表情動作設定</h2>
+  <div class="rowN" style="margin-top:0">
+    <div><label class="t" for="level">動作誇張程度</label>
+      <select id="level"><option value="light">輕度</option><option value="mid">中度</option><option value="heavy" selected>重度</option></select></div>
+    <div><label class="t" for="frame">取景方式</label>
+      <select id="frame"><option value="full">全身</option><option value="half">半身</option><option value="close">大頭特寫</option><option value="mix">混合</option></select></div>
+    <div><label class="t" for="outline">貼圖外框</label>
+      <select id="outline"><option value="thin">細白外框</option><option value="mid" selected>中等白外框</option><option value="thick">粗白外框</option></select></div>
+  </div>
+  <label class="t" style="margin-top:18px">情緒輔助符號（可複選，只會用圖形）</label>
+  <div class="chips" id="syms"></div>
+  <div class="hint">「問號形狀、驚嘆形狀」預設關閉：模型容易直接畫成真的標點符號，需要時再打開。</div>
+</section>
+
+<section class="card">
+  <h2>16 組表情／動作</h2>
+  <div class="bar">
+    <button class="btn ghost" data-tpl="A">日常表情</button>
+    <button class="btn ghost" data-tpl="B">厭世表情</button>
+    <button class="btn ghost" data-tpl="C">一鍵清空</button>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="warn" id="warn"></div>
+</section>
+
+<div class="gen"><button class="btn" id="gen">生成 4x4 貼圖提示詞</button></div>
+
+<section id="out">
+  <div class="card">
+    <h2>整體 4x4 一次生成提示詞</h2>
+    <div class="note" id="refNote" style="display:none">你上傳了參考圖：請在 ChatGPT / Gemini 的對話中自行附上同一張圖片，本工具無法代為上傳。</div>
+    <div class="note">提示詞已固定加入「禁止任何文字」規則；若圖裡仍出現文字或標點，請用單張提示詞或單格重繪補救。</div>
+    <pre id="sheet"></pre>
+    <button class="btn alt" id="copyAll">一鍵複製完整提示詞</button>
+  </div>
+  <div class="card">
+    <h2>單張獨立生成提示詞（1–16）</h2>
+    <div class="bar"><button class="btn alt" id="copyIndiv">一鍵複製單張提示詞（全部 16 則）</button></div>
+    <div id="indiv"></div>
+  </div>
+  <div class="card">
+    <div class="note g">LINE 貼圖單張上限為 370×320 px、PNG 去背，邊緣建議留少許空白。實際規格請以 LINE Creators Market 最新規定為準。</div>
+  </div>
+</section>
+</div>
+<div id="toast"></div>
+
+<script>
+// [中文名, 英文名, 中文說明, 角色英文描述, 肢體表情特徵(英), 肢體表情特徵(中)]
+const STYLES=[
+["軟萌麻糬果凍系","Mochi Jelly","Q 彈半透明的麻糬與果凍質感，圓滾滾、表情呆萌。","a squishy translucent mochi jelly creature, round plump body, glossy wobbly surface, soft blush cheeks, tiny dot eyes","the body squashes, stretches and bounces like soft mochi to show emotions","身體像麻糬一樣壓扁、拉長、彈跳來表現情緒"],
+["溫潤多肉植感系","Succulent Plant","多肉植物長出臉和手腳，溫潤療癒的綠意感。","a cute succulent plant creature, plump fleshy leaves forming the body, tiny pot feet, gentle smile, soft matte texture","the leaves perk up, droop, curl or fan out to show emotions","葉片挺直、下垂、捲起或展開來表現情緒"],
+["融化厭世史萊姆","Melting Slime","軟爛攤平、滴落黏液，專治厭世與無力感。","a melting slime blob creature, dripping gooey body, droopy tired eyes, puddle at the bottom, glossy slime shine","the body slumps, melts, stretches and drips to show emotions","身體攤平、融化、拉長、滴落來表現情緒"],
+["軟綿毛茸毛怪系","Fluffy Monster","毛茸茸大毛球怪獸，蓬鬆柔軟、手感滿分。","a fluffy furry monster, fuzzy fur-ball body, stubby limbs, big round eyes, tiny horns, soft fur texture","the fur puffs up, flops and shakes while the stubby limbs flail","毛髮炸開、癱軟、抖動，短手腳揮舞"],
+["蓬鬆出爐麵包系","Bakery Bread","剛出爐的麵包角色，金黃酥脆、暖呼呼。","a freshly baked bread creature, golden brown crust, soft fluffy bun body, cute face, warm steam, bakery vibes","the bun body puffs up, deflates and steams, and the crust cracks into a smile","麵包身體膨脹、消風、冒蒸氣，酥皮裂出笑容"],
+["海底浮游水母系","Glowing Jellyfish","半透明發光水母，漂浮感與夢幻光暈。","a glowing translucent jellyfish creature, floating bell-shaped body, flowing tentacles, soft bioluminescent glow","the bell pulses and floats while the tentacles wave, curl or droop","傘蓋脈動漂浮，觸手揮舞、捲曲或下垂"],
+["軟趴外星章魚系","Alien Octopus Tentacles","軟趴趴觸手外星章魚，表情豐富、動作靈活。","a cute alien octopus creature, soft wiggly tentacles, big expressive eyes, bubbly suction cups, playful pose","the tentacles wave, wrap, point and tangle to act out emotions","觸手揮舞、纏繞、指向、打結來演出情緒"],
+["節肢微物多足系","Cute Caterpillar / Multi-legged","圓潤毛蟲與多足小蟲，微小但表情很大。","a cute caterpillar multi-legged bug creature, segmented chubby body, many tiny legs, little antennae, big friendly eyes","the body segments scrunch, wiggle, curl into a ball and stretch","身體節段縮起、扭動、捲成球、伸長"],
+["暴走大嘴怪獸系","Roaring Monster with Big Teeth","張大嘴巴、露出大牙的暴走怪獸，情緒爆發專用。","a roaring monster with a huge open mouth and big teeth, exaggerated shouting expression, chunky body, dynamic pose","the mouth opens wide showing big teeth while the body stomps and shakes","大嘴張開、露出大牙，身體跺腳與顫抖"],
+["悠哉山石苔蘚系","Mossy Rock Golem","長滿青苔的石頭巨人，慢吞吞很穩重。","a mossy rock golem, rounded stone body covered in green moss, tiny flowers on head, sleepy calm face, chunky limbs","slow heavy poses, with moss and tiny flowers drooping or sprouting with the mood and cracks appearing in the stone","動作緩慢沉重，苔蘚與小花隨情緒垂下或冒出，石頭出現裂痕"],
+["復古電玩像素風","8-bit Pixel Art Monster","8-bit 像素小怪獸，懷舊遊戲機的方塊感。","an 8-bit pixel art monster, blocky pixel body, limited retro color palette, crisp pixel edges, arcade game sprite style","blocky pixel poses with simplified sprite-like gestures and pixel particles for the mood","方塊像素的姿勢與簡化的遊戲角色動作，用像素粒子表現情緒"],
+["蒸汽龐克機械怪","Steampunk Brass & Gears","黃銅齒輪與蒸汽管線組成的機械小怪。","a steampunk mechanical creature, brass plates and exposed gears, small steam pipes, rivets, glowing round lens eyes","the gears spin, pipes puff steam and the metal joints strike stiff poses","齒輪轉動、管線噴蒸氣，金屬關節擺出僵硬姿勢"],
+["閃亮派對氣球獸","Twisted Balloon Animal","扭轉氣球做成的動物，亮面反光、派對氣氛。","a twisted balloon animal, shiny glossy latex balloon body, knotted tied ends, party sparkle, light reflections","the balloon body inflates, squeaks, squashes and bounces","氣球身體膨脹、被擠壓、彈跳"],
+["幾何立體摺紙生命","Geometric Origami Creature","摺紙折線分明的幾何生物，俐落有層次。","a geometric origami paper creature, sharp folded facets, crisp creases, layered paper texture, minimal face","the paper body folds, unfolds and crumples with sharp angular poses","紙身體摺起、展開、皺縮，以銳利的角度姿勢表現情緒"],
+["夢幻星空銀河幻獸","Cosmic Galaxy Nebula","身體裡裝著星雲與銀河的夢幻幻獸。","a cosmic galaxy creature, body filled with nebula and twinkling stars, glowing constellations, dreamy purple and blue gradients","stars swirl and flare, and the nebula body glows brighter or dims with the mood","星星旋轉閃耀，星雲身體隨情緒變亮或變暗"],
+["秋日落葉乾燥花藝","Dried Floral & Botanical","乾燥花與落葉拼成的角色，溫柔秋意。","a creature made of dried flowers and autumn leaves, botanical collage body, delicate petals, rustic warm tones","petals and leaves rustle, fall off or bloom to show emotions","花瓣與落葉隨情緒沙沙作響、掉落或綻放"],
+["街頭塗鴉波普怪獸","Pop Art Doodle Monster","粗黑線條、網點與塗鴉，個性強烈的波普怪獸。","a pop art doodle monster, bold black outlines, halftone dots, graffiti street style, punchy flat colors","bold exaggerated poses with thick lines, graphic shake lines and punchy gestures","粗線條的誇張姿勢，加上圖形震動線與強烈手勢"],
+["繽紛黏土捏捏樂","Handmade Clay / Plasticine","手捏黏土質感，帶指紋痕跡的可愛角色。","a handmade clay plasticine creature, visible fingerprint marks, soft matte clay surface, chunky hand-sculpted shapes","chunky hand-sculpted poses with squished and pinched shapes","厚實手捏的姿勢，有被擠壓與捏出的形狀"],
+["夢幻水彩暈染精靈","Dreamy Watercolor Fairy","水彩暈染的小精靈，色彩柔和流動。","a dreamy watercolor fairy creature, soft color bleeding edges, translucent washes, delicate paper grain, gentle wings","soft flowing poses with colors bleeding to match the mood","柔和流動的姿勢，色彩隨情緒暈染"],
+["百鬼夜行水墨妖怪","Japanese Sumi-e Yōkai","日式水墨筆觸的妖怪，留白與墨色濃淡。","a Japanese sumi-e yokai spirit, expressive ink brush strokes, ink wash gradients, red hanko seal accent, playful ghostly form","dynamic brush-stroke poses with ink splashes and washes to show the mood","有動勢的筆觸姿勢，以墨花與暈染表現情緒"]
+];
+const PALETTES=[["糖果馬卡龍","candy macaron pastel colors"],["溫暖烘焙大地色","warm bakery earth tones"],["螢光街頭","neon fluorescent street colors"],["幽靜深海森系","calm deep-sea and forest green colors"],["粉嫩少女","soft pink girly pastel colors"]];
+// [標籤, 英文, 中文, 預設開啟]
+const SYMS=[
+["汗滴","sweat drops","汗滴",1],["愛心","small hearts","小愛心",1],["星星","little stars","小星星",1],["閃光","sparkles","閃光",1],
+["怒氣","graphic anger marks (cross-shaped veins)","怒氣十字紋",0],["花朵","small flowers","小花朵",0],
+["問號形狀","a question-mark-like curl shape","問號形狀的捲曲圖形",0],["驚嘆形狀","an exclamation-like burst shape","驚嘆形狀的爆裂圖形",0]
+];
+const LEVELS={
+light:["Expressions and actions are gentle and natural, with small changes in face and posture.","表情與動作自然溫和，臉部與姿勢只有小幅變化。"],
+mid:["Expressions and actions are clearly exaggerated, with clear changes in face and posture that read at a glance.","表情與動作有明顯誇張，臉部與姿勢變化清楚，一眼就能看出情緒。"],
+heavy:["Expressions and actions are strongly exaggerated like a comic reaction, with extreme faces, big dynamic poses and cartoon squash and stretch, so the emotion reads instantly even at small size.","表情與動作做強烈的漫畫式誇張，臉部極端、姿勢大而有動感、帶卡通式擠壓與拉伸，縮小後也能一眼看懂情緒。"]
+};
+const FRAMES={
+full:["full-body view showing the whole character","全身取景，完整呈現角色"],
+half:["half-body view from the waist up","半身取景，從腰部以上"],
+close:["close-up of the head and face","大頭特寫，聚焦臉部"],
+mix:["a mix of full-body, half-body and close-up views across the stickers","各張混合全身、半身與大頭特寫取景"]
+};
+const OUTL={thin:["thin","細"],mid:["medium-thick","中等粗細"],thick:["thick","粗"]};
+const BGS={
+white:["Pure white background, clean cutout, isolated stickers, no background distraction.","純白背景，乾淨去背，貼圖互相獨立，沒有任何會干擾的背景元素。","固定白底，方便去背。"],
+transparent:["Fully transparent background with a real alpha channel (PNG), clean cutout, isolated stickers, no checkerboard pattern and no background distraction.","完全透明的背景（PNG 透明通道），乾淨去背，貼圖互相獨立，不要出現棋盤格，也沒有任何干擾的背景元素。","注意：生圖工具常輸出假透明（棋盤格或白底），建議改用純色去背底。"],
+key:["Solid flat pure green (#00FF00) background with no gradient, no shadow and no texture so it can be keyed out easily, and no character or outline may use green.","純綠色（#00FF00）平塗背景，沒有漸層、陰影與紋理，方便後製去背，角色與外框都不可使用綠色。","純綠底可用去背工具一鍵移除；請避免用綠色系色彩與角色。"]
+};
+const TPL={
+A:["打招呼揮手","開心跳躍","點頭同意","比讚","雙手合十拜託","害羞臉紅","大笑","感謝鞠躬","驚訝","睡覺","握拳加油","送出愛心","疑惑歪頭","開心轉圈","揮手再見","舉杯慶祝"],
+B:["癱軟趴地","融化成一灘","發呆放空","崩潰大哭","石化裂開","翻白眼","生氣跺腳","累到靠牆","抱頭尖叫","裝死","縮在被子裡","嘆氣","靈魂出竅","掩面不想看","暴走怒吼","擺爛躺平"],
+C:Array(16).fill("")
+};
+const $=id=>document.getElementById(id);
+let palIdx=-1,generated=false,indivList=[],hasRef=false;
+const symOn=SYMS.map(s=>!!s[3]);
+
+STYLES.forEach((s,i)=>{const o=document.createElement("option");o.value=i;o.textContent=`${i+1}. ${s[0]} (${s[1]})`;$("style").appendChild(o)});
+const showDesc=()=>{const s=STYLES[$("style").value];$("styleDesc").textContent=`${s[2]}　動作特色：${s[5]}。`;$("bgDesc").textContent=BGS[$("bg").value][2]};
+showDesc();
+PALETTES.forEach((p,i)=>{const b=document.createElement("button");b.type="button";b.className="chip";b.textContent=p[0];
+  b.onclick=()=>{const on=palIdx===i;palIdx=on?-1:i;document.querySelectorAll("#chips .chip").forEach(c=>c.classList.remove("on"));if(!on)b.classList.add("on");refresh()};
+  $("chips").appendChild(b)});
+SYMS.forEach((s,i)=>{const b=document.createElement("button");b.type="button";b.className="chip"+(symOn[i]?" on":"");b.textContent=s[0];
+  b.onclick=()=>{symOn[i]=!symOn[i];b.classList.toggle("on",symOn[i]);refresh()};$("syms").appendChild(b)});
+
+function grow(t){t.style.height="auto";t.style.height=Math.max(76,t.scrollHeight+2)+"px"}
+for(let i=0;i<16;i++){
+  const d=document.createElement("div");d.className="slot";
+  d.innerHTML=`<span>Slot ${i+1}</span><textarea rows="1" aria-label="Slot ${i+1}" placeholder="表情／動作"></textarea>`;
+  $("grid").appendChild(d);
+  const t=d.querySelector("textarea");
+  t.addEventListener("input",()=>{grow(t);d.classList.remove("empty");refresh()});
+}
+const slots=()=>[...document.querySelectorAll(".slot textarea")];
+document.querySelectorAll("[data-tpl]").forEach(b=>b.onclick=()=>{
+  const arr=TPL[b.dataset.tpl];
+  slots().forEach((t,i)=>{
+    t.value=arr[i];grow(t);t.parentNode.classList.remove("empty","flash");void t.parentNode.offsetWidth;
+    t.parentNode.classList.add("flash");setTimeout(()=>t.parentNode.classList.remove("flash"),380+i*30);
+  });
+  $("warn").textContent="";refresh();
+});
+$("refFile").addEventListener("change",e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=()=>{$("refImg").src=r.result;$("refImg").style.display="block";$("refClear").style.display="inline-block";hasRef=true;refresh()};r.readAsDataURL(f);
+});
+$("refClear").onclick=()=>{$("refFile").value="";$("refImg").style.display="none";$("refClear").style.display="none";hasRef=false;refresh()};
+
+const clean=s=>s.trim().replace(/\s*\n\s*/g," ").replace(/"/g,"'");
+function build(){
+  const zh=$("lang").value==="zh",L=(a,b)=>zh?a:b;
+  const s=STYLES[$("style").value],art=$("art").value,bgv=BGS[$("bg").value];
+  const lv=LEVELS[$("level").value],fr=FRAMES[$("frame").value],ol=OUTL[$("outline").value];
+  const custom=$("colorCustom").value.trim(),desc=clean($("charDesc").value),same=$("consist").value==="same";
+  const palTxt=palIdx<0?"":(zh?PALETTES[palIdx][0]:PALETTES[palIdx][1]);
+  const col=[palTxt,custom].filter(Boolean).join(zh?"、":", ")||L("和諧統一的配色","harmonious cohesive colors");
+  const bg=L(bgv[1],bgv[0]);
+  const acts=slots().map(t=>clean(t.value));
+  const intro=L("請使用你的圖像生成功能，依下列描述產生一張圖片。","Please use your image generation ability to create one image as described below.");
+  const style=L(`整體畫風為 ${art}，風格為「${s[0]}」：${s[2]}（英文參考：${s[3]}）。色系為 ${col}。`,`The overall look is ${art}, in the spirit of ${s[1]}: ${s[3]}. The color palette is ${col}.`);
+  const body=L(`肢體與表情特色：${s[5]}。`,`Body language: ${s[4]}.`);
+  let charLine;
+  if(hasRef)charLine=L("請以附上的參考圖作為角色依據，保持其外觀、色彩、比例與臉部特徵完全一致，只改變表情與動作。","Use the attached reference image as the character reference and keep its appearance, colors, proportions and facial features identical, changing only the expression and action.");
+  else if(same)charLine=L(`主角是${desc?`「${desc}」，`:"依所選風格設計的一個擬人生物，"}16 張貼圖必須是完全相同的同一個角色，身體造型、比例、配色與臉部設計一致，只有表情與動作不同。`,
+    `The main character is ${desc?`"${desc}", `:"a personified creature designed from the chosen style, "}and all 16 stickers must show the exact same character with identical body shape, proportions, colors and facial design, changing only the expression and action.`);
+  else charLine=L(`每張貼圖可依自己的表情動作獨立創作生物造型${desc?`，主題參考「${desc}」`:""}，不必與其他格相同。`,`Each sticker may invent its own creature form to suit its expression and action${desc?`, with the theme "${desc}"`:""}, and does not need to match the others.`);
+  const syms=SYMS.filter((x,i)=>symOn[i]).map(x=>zh?x[2]:x[1]);
+  const symLine=syms.length
+    ?L(`可用圖形化的情緒輔助符號：${syms.join("、")}。這些只能是純圖形，絕對不可以是文字、字母、數字或標點符號。`,`Emotion accent symbols may be used: ${syms.join(", ")}. They must be pure graphic shapes and never letters, numbers or punctuation marks.`)
+    :L("不使用任何情緒輔助符號，只靠角色的臉與身體表現情緒。","Do not use any emotion accent symbols; express the emotion only through the character's face and body.");
+  const noText=L("絕對不要出現任何文字：不要有字母、文字、數字、類似文字的符號、對話框、說明文字、擬聲字或浮水印。","Absolutely no text of any kind: no letters, words, numbers, writing-like symbols, speech bubbles, captions, sound-effect lettering or watermarks.");
+  const act=L(`${lv[1]}取景：${fr[1]}。`,`${lv[0]} Framing: ${fr[0]}.`);
+  const border=L(`每張貼圖都有${ol[1]}的白色模切貼紙外框，角色與外框之間乾淨清楚。`,`Every sticker has a ${ol[0]} white die-cut sticker border that cleanly separates the character from the background.`);
+  const neg=L("請勿出現分隔線或格線、簽名、格子編號、互相重疊的貼圖，也不要讓陰影滲入相鄰格子。","Do not include divider lines or grid lines, signatures, cell numbers, overlapping stickers, or shadows that bleed into neighboring cells.");
+  const actTxt=a=>a?L(`表情／動作：${a}`,`expression / action: ${a}`):L("由你自由設計一個鮮明的表情與動作","a vivid expression and action of your own choice");
+  const list=acts.map((a,i)=>L(`第 ${i+1} 格：`,`Cell ${i+1}: `)+actTxt(a)+(zh?"。":".")).join("\n");
+  const sheet=`${intro}
+${L("請產生一張 4x4 網格版面的貼圖包貼圖表，共 16 張不同的貼圖，排成 4 欄 4 列、大小相同的方形格，間距寬鬆，貼圖之間互不接觸。","Create a 4x4 grid layout sticker pack sheet with 16 different stickers, arranged as 4 columns and 4 rows of equal square cells, with generous spacing so that no sticker touches another.")}
+${style}
+${charLine}
+${body} ${act}
+${symLine}
+${border}
+${noText}
+${L("背景：","The background is: ")}${bg}
+${L("各格的表情與動作由左至右、由上至下如下。","The expression and action of each cell, from left to right and top to bottom, are as follows.")}
+${list}
+${neg}`;
+  const indiv=acts.map((a,i)=>`${intro} ${L(`請產生一張方形的單張貼圖（第 ${i+1} 張，共 16 張）。`,`Create a single square sticker (sticker ${i+1} of 16).`)}
+${style}
+${charLine}
+${body} ${act}
+${L("貼圖置中於畫布。","The sticker is centered in the canvas.")} ${actTxt(a)}${zh?"。":"."}
+${symLine}
+${border}
+${noText}
+${L("背景：","The background is: ")}${bg}
+${neg}`);
+  const redraw=acts.map((a,i)=>`${intro} ${L(`請只重繪先前 4x4 貼圖表中的第 ${i+1} 張，維持相同的角色、${art} 畫風、色系與格子版面，只為這一格重新產生一張貼圖。`,`Redraw only sticker ${i+1} from the 4x4 sheet generated earlier, keeping the same character, ${art} style, color palette and cell layout, and create a new single sticker for this cell only.`)}
+${actTxt(a)}${zh?"。":"."} ${act}
+${symLine}
+${noText}
+${L("背景：","The background is: ")}${bg}`);
+  return {sheet,indiv,redraw,acts};
+}
+function render(){
+  const {sheet,indiv,redraw,acts}=build();
+  $("sheet").textContent=sheet;indivList=indiv;
+  $("refNote").style.display=hasRef?"block":"none";
+  const open=new Set([...document.querySelectorAll("#indiv details[open]")].map(d=>d.dataset.i));
+  const box=$("indiv");box.innerHTML="";
+  indiv.forEach((p,i)=>{
+    const d=document.createElement("details");d.dataset.i=i;if(open.has(String(i)))d.open=true;
+    const sm=document.createElement("summary");sm.innerHTML=`<span>Slot ${i+1}</span>`;
+    const em=document.createElement("em");em.textContent=acts[i]||"（空白）";sm.appendChild(em);
+    const inn=document.createElement("div");inn.className="in";
+    const mk=(h,txt,msg)=>{const hh=document.createElement("h4");hh.textContent=h;const pre=document.createElement("pre");pre.textContent=txt;
+      const b=document.createElement("button");b.className="btn sm ghost";b.textContent="複製";b.onclick=()=>copy(txt,msg);inn.append(hh,pre,b)};
+    mk("單張生成",p,`已複製第 ${i+1} 張提示詞`);
+    mk("單格重繪（沿用整張貼圖表的角色與畫風）",redraw[i],`已複製第 ${i+1} 格重繪提示詞`);
+    d.append(sm,inn);box.appendChild(d);
+  });
+}
+function check(){
+  const e=[];
+  slots().forEach((t,i)=>{const x=!t.value.trim();t.parentNode.classList.toggle("empty",x);if(x)e.push(i+1)});
+  $("warn").textContent=e.length?`第 ${e.join("、")} 格還沒填表情或動作，已用紅框標記；空白格會交給模型自由發揮。`:"";
+  return e.length;
+}
+function refresh(){if(generated)render()}
+$("gen").onclick=()=>{
+  const n=check();generated=true;render();$("out").style.display="block";
+  if(n===16)toast("16 格都是空的，將由模型自由發揮；建議先選範本");
+  $("out").scrollIntoView({behavior:"smooth",block:"start"});
+};
+["lang","style","art","bg","level","frame","outline","consist"].forEach(id=>$(id).addEventListener("change",()=>{showDesc();refresh()}));
+["colorCustom","charDesc"].forEach(id=>$(id).addEventListener("input",refresh));
+
+function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("show"),2400)}
+function copy(text,msg){
+  if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(text).then(()=>toast(msg),()=>fb(text,msg));else fb(text,msg);
+}
+function fb(text,msg){const a=document.createElement("textarea");a.value=text;a.style.cssText="position:fixed;opacity:0";document.body.appendChild(a);a.select();
+  try{document.execCommand("copy");toast(msg)}catch(e){toast("複製失敗，請手動選取文字")}a.remove()}
+$("copyAll").onclick=()=>copy($("sheet").textContent,"已複製完整提示詞");
+$("copyIndiv").onclick=()=>copy(indivList.map((p,i)=>`【${i+1}】\n${p}`).join("\n\n"),"已複製 16 則單張提示詞");
+</script>
+</body>
+</html>
